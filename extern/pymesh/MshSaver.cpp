@@ -1,3 +1,4 @@
+
 /* This file is part of PyMesh. Copyright (c) 2015 by Qingnan Zhou */
 #include "MshSaver.h"
 
@@ -42,51 +43,48 @@ void MshSaver::save_mesh(const VectorF& nodes, const VectorI& elements,
 }
 
 void MshSaver::save_header() {
-    if (!m_binary) {
-        fout << "$MeshFormat" << std::endl;
-        fout << "2.2 0 " << sizeof(double) << std::endl;
-        fout << "$EndMeshFormat" << std::endl;
-    } else {
-        fout << "$MeshFormat" << std::endl;
-        fout << "2.2 1 " << sizeof(double) << std::endl;
-        int one = 1;
-        fout.write((char*)&one, sizeof(int));
-        fout << "$EndMeshFormat" << std::endl;
-    }
-    fout.flush();
 }
 
 void MshSaver::save_nodes(const VectorF& nodes) {
-    // Save nodes.
+    // Save nodes
+    float svg_dim = 512;
+    // assuming svg is 512x512
     m_num_nodes = nodes.size() / m_dim;
-    fout << "$Nodes" << std::endl;
-    fout << m_num_nodes << std::endl;
-    if (!m_binary) {
-        for (size_t i=0; i<nodes.size(); i+=m_dim) {
-            const VectorF& v = nodes.segment(i,m_dim);
-            int node_idx = i/m_dim+1;
-            fout << node_idx << " " << v[0] << " " << v[1] << " ";
-            if (m_dim == 2) {
-                fout << 0.0 << std::endl;
-            } else {
-                fout << v[2] << std::endl;
-            }
-        }
-    } else {
-        for (size_t i=0; i<nodes.size(); i+=m_dim) {
-            const VectorF& v = nodes.segment(i,m_dim);
-            int node_idx = i/m_dim+1;
-            fout.write((char*)&node_idx, sizeof(int));
-            fout.write((char*)v.data(), sizeof(Float)*m_dim);
 
-            // for 2D shapes, z coordinate is always 0.
-            if (m_dim == 2) {
-                const Float zero = 0.0;
-                fout.write((char*)&zero, sizeof(Float));
-            }
+    // calculate the bounding box
+    float min_x = 1e10;
+    float min_y = 1e10;
+    float max_x = -1e10;
+    float max_y = -1e10;
+
+    for (size_t i=0; i<nodes.size(); i+=m_dim) {
+        const VectorF& v = nodes.segment(i,m_dim);
+        // do not use std
+        if (v[0] < min_x) {
+            min_x = v[0];
+        }
+        if (v[1] < min_y) {
+            min_y = v[1];
+        }
+        if (v[0] > max_x) {
+            max_x = v[0];
+        }
+        if (v[1] > max_y) {
+            max_y = v[1];
         }
     }
-    fout << "$EndNodes" << std::endl;
+
+    float width = max_x - min_x;
+    float height = max_y - min_y;
+
+
+    for (size_t i=0; i<nodes.size(); i+=m_dim) {
+        const VectorF& v = nodes.segment(i,m_dim);
+        int node_idx = i/m_dim+1;
+        // unity flips the x axis cuz LHS
+        fout << "v" << " " << -(v[0] - width/2)/svg_dim << " " << -(v[1] - height/2)/svg_dim << " " << 0.0 << std::endl;
+    }
+    fout << "vn" << " " << 0.0 << " " << 0.0 << " " << 1.0 << std::endl;
     fout.flush();
 }
 
@@ -116,8 +114,8 @@ void MshSaver::save_elements(
     m_num_elements = elements.size() / nodes_per_element;
 
     // Save elements.
-    fout << "$Elements" << std::endl;
-    fout << m_num_elements << std::endl;
+    // fout << "$Elements" << std::endl;
+    // fout << m_num_elements << std::endl;
 
     if (m_num_elements > 0) {
         int elem_type = type;
@@ -129,7 +127,7 @@ void MshSaver::save_elements(
                 VectorI elem = elements.segment(i, nodes_per_element) +
                                VectorI::Ones(nodes_per_element);
 
-                fout << elem_num << " " << elem_type << " " << tags << " ";
+                fout << "f" << " ";
                 for (size_t j=0; j<nodes_per_element; j++) {
                     fout << elem[j] << " ";
                 }
@@ -148,7 +146,7 @@ void MshSaver::save_elements(
             }
         }
     }
-    fout << "$EndElements" << std::endl;
+    // fout << "$EndElements" << std::endl;
     fout.flush();
 }
 

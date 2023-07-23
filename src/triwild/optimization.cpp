@@ -821,7 +821,7 @@ void triwild::optimization::output_mesh(MeshData& mesh) {
                 F(cnt * 3 + j) = map_v_ids[mesh.tris[i][j]];
             cnt++;
         }
-        PyMesh::MshSaver mSaver(args.output + "_linear.msh", true);
+        PyMesh::MshSaver mSaver(args.output + ".obj", false);
         mSaver.save_mesh(V, F, 3, mSaver.TRI);
     }
 
